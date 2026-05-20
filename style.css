@@ -737,3 +737,165 @@ textarea:focus {
     transform: translateX(-50%);
   }
 }
+
+/* ==========================================================================
+   LOCK SCREEN PIN CODE UI
+   ========================================================================== */
+.lock-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 3, 10, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.lock-screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lock-container {
+  width: 90%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 24px;
+  gap: 25px;
+  text-align: center;
+  animation: lockPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards;
+}
+
+@keyframes lockPop {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.lock-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lock-avatar {
+  font-size: 32px;
+  width: 70px;
+  height: 70px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid var(--border-glass);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.lock-header h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.lock-header p {
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+/* PIN Display Dots */
+.pin-display {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+  transform: scale(1.15);
+}
+
+.pin-dot.error {
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: shake 0.15s ease-in-out 3;
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+  100% { transform: translateX(0); }
+}
+
+/* PIN Pad Grid */
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.pin-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  margin: 0 auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  transition: var(--transition-bounce);
+}
+
+.pin-btn:active {
+  background: var(--primary-grad);
+  border-color: transparent;
+  transform: scale(0.9);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.pin-btn.btn-clear, .pin-btn.btn-delete {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-sub);
+  background: transparent;
+  border-color: transparent;
+}
+
+.pin-btn.btn-clear:active, .pin-btn.btn-delete:active {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+  transform: scale(0.95);
+  color: var(--text-main);
+}

@@ -23,6 +23,39 @@
 </head>
 <body>
 
+  <!-- Lock Screen Overlay -->
+  <div id="lock-screen" class="lock-screen active">
+    <div class="lock-container glass-panel">
+      <div class="lock-header">
+        <div class="lock-avatar">🔒</div>
+        <h2>Acceso Privado</h2>
+        <p>Ingresá tu PIN para desbloquear</p>
+      </div>
+      
+      <div class="pin-display">
+        <div class="pin-dot" id="dot-0"></div>
+        <div class="pin-dot" id="dot-1"></div>
+        <div class="pin-dot" id="dot-2"></div>
+        <div class="pin-dot" id="dot-3"></div>
+      </div>
+      
+      <div class="pin-pad">
+        <button class="pin-btn" data-val="1">1</button>
+        <button class="pin-btn" data-val="2">2</button>
+        <button class="pin-btn" data-val="3">3</button>
+        <button class="pin-btn" data-val="4">4</button>
+        <button class="pin-btn" data-val="5">5</button>
+        <button class="pin-btn" data-val="6">6</button>
+        <button class="pin-btn" data-val="7">7</button>
+        <button class="pin-btn" data-val="8">8</button>
+        <button class="pin-btn" data-val="9">9</button>
+        <button class="pin-btn btn-clear" data-val="clear">C</button>
+        <button class="pin-btn" data-val="0">0</button>
+        <button class="pin-btn btn-delete" data-val="back">⌫</button>
+      </div>
+    </div>
+  </div>
+
   <!-- App Header -->
   <header class="app-header">
     <div class="logo-container">

@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // App Initialization
 function initApp() {
+  checkLock();
   updateWelcomeDate();
   setupNavigation();
   setupEventListeners();
@@ -623,4 +624,138 @@ function urlB64ToUint8Array(base64String) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+// LOCK SCREEN SECURITY FOR PUBLIC REPOS
+function checkLock() {
+  const unlocked = sessionStorage.getItem('app_unlocked') === 'true';
+  const lockScreen = document.getElementById('lock-screen');
+  
+  if (unlocked) {
+    if (lockScreen) lockScreen.classList.remove('active');
+  } else {
+    // Check if backend actually requires a PIN
+    fetch(`${BACKEND_URL}/api/pin-required`)
+      .then(res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then(data => {
+        if (!data.required) {
+          // Backend doesn't require PIN (e.g. local development without APP_PIN)
+          sessionStorage.setItem('app_unlocked', 'true');
+          if (lockScreen) lockScreen.classList.remove('active');
+        } else {
+          if (lockScreen) lockScreen.classList.add('active');
+          setupLockScreenEvents();
+        }
+      })
+      .catch(err => {
+        // Fallback: If backend is offline or errors out, keep locked
+        console.warn('Could not check lock state, defaulting to locked.', err);
+        if (lockScreen) lockScreen.classList.add('active');
+        setupLockScreenEvents();
+      });
+  }
+}
+
+function setupLockScreenEvents() {
+  let enteredPin = '';
+  const dots = [
+    document.getElementById('dot-0'),
+    document.getElementById('dot-1'),
+    document.getElementById('dot-2'),
+    document.getElementById('dot-3')
+  ];
+  const lockScreen = document.getElementById('lock-screen');
+  const buttons = document.querySelectorAll('.pin-btn');
+
+  // Clone and replace buttons to reset any old event listeners
+  buttons.forEach(btn => {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+  });
+
+  // Re-fetch and attach click events
+  const freshButtons = document.querySelectorAll('.pin-btn');
+  freshButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-val');
+      
+      if (val === 'clear') {
+        enteredPin = '';
+      } else if (val === 'back') {
+        enteredPin = enteredPin.slice(0, -1);
+      } else if (enteredPin.length < 4) {
+        enteredPin += val;
+      }
+      
+      // Update Dots UI
+      dots.forEach((dot, index) => {
+        if (dot) {
+          if (index < enteredPin.length) {
+            dot.classList.add('filled');
+          } else {
+            dot.classList.remove('filled');
+          }
+          dot.classList.remove('error');
+        }
+      });
+
+      // Once 4 digits are typed, verify against backend
+      if (enteredPin.length === 4) {
+        verifyPin(enteredPin, dots, lockScreen);
+        enteredPin = ''; // Reset PIN buffer
+      }
+    });
+  });
+}
+
+function verifyPin(pin, dots, lockScreen) {
+  showLoading(true);
+  fetch(`${BACKEND_URL}/api/verify-pin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ pin })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('PIN incorrecto');
+    return res.json();
+  })
+  .then(data => {
+    if (data.success) {
+      sessionStorage.setItem('app_unlocked', 'true');
+      showToast('🔓 Acceso Autorizado');
+      if (lockScreen) lockScreen.classList.remove('active');
+    } else {
+      throw new Error('PIN incorrecto');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    showToast('PIN Incorrecto ❌');
+    
+    // Animate error flash on dots
+    dots.forEach(dot => {
+      if (dot) {
+        dot.classList.remove('filled');
+        dot.classList.add('error');
+      }
+    });
+    
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+    
+    setTimeout(() => {
+      dots.forEach(dot => {
+        if (dot) dot.classList.remove('error');
+      });
+    }, 800);
+  })
+  .finally(() => {
+    showLoading(false);
+  });
 }
