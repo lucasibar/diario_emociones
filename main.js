@@ -42,6 +42,8 @@ function initApp() {
   setupNavigation();
   setupEventListeners();
   loadLogs();
+  initGoals();
+  loadPushHours();
   
   // Register Service Worker and check subscription
   registerSW();
@@ -127,6 +129,13 @@ function setupEventListeners() {
     charCounter.textContent = textarea.value.length;
   });
 
+  // Toggle past date selection
+  const btnToggleDate = document.getElementById('btn-toggle-custom-date');
+  const dateWrapper = document.getElementById('datetime-picker-wrapper');
+  btnToggleDate.addEventListener('click', () => {
+    dateWrapper.classList.toggle('hidden');
+  });
+
   // Diary Actions
   document.getElementById('btn-save-diary').addEventListener('click', () => {
     saveCurrentLog();
@@ -145,6 +154,21 @@ function setupEventListeners() {
   // Settings Actions
   document.getElementById('btn-toggle-notifications').addEventListener('click', () => {
     toggleNotificationSubscription();
+  });
+
+  document.getElementById('btn-save-push-hours').addEventListener('click', () => {
+    savePushHours();
+  });
+
+  document.getElementById('btn-add-goal').addEventListener('click', () => {
+    addGoal();
+  });
+
+  const goalInput = document.getElementById('input-new-goal');
+  goalInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      addGoal();
+    }
   });
 
   document.getElementById('btn-simulate-notification').addEventListener('click', () => {
@@ -181,6 +205,13 @@ function selectMood(moodValue) {
   document.getElementById('diary-textarea').value = '';
   document.getElementById('char-count').textContent = '0';
 
+  // Initialize DateTime Picker to local current time
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+  const localISOTime = new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
+  document.getElementById('diary-datetime').value = localISOTime;
+  document.getElementById('datetime-picker-wrapper').classList.add('hidden');
+
   // Navigate to Diary View
   navigateTo('view-diary');
 }
@@ -215,10 +246,13 @@ function saveCurrentLog() {
   }
 
   const noteText = document.getElementById('diary-textarea').value.trim();
-  const timestamp = new Date().getTime();
+  
+  // Read date/time value from picker
+  const dateTimeVal = document.getElementById('diary-datetime').value;
+  const timestamp = dateTimeVal ? new Date(dateTimeVal).getTime() : Date.now();
 
   const newLog = {
-    id: timestamp,
+    id: Date.now() + Math.floor(Math.random() * 1000), // Unique ID even for custom times
     mood: currentSelectedMood,
     note: noteText,
     date: timestamp
@@ -233,8 +267,9 @@ function saveCurrentLog() {
     console.error('Error reading logs from storage', e);
   }
 
-  // Insert new log at the beginning
-  logs.unshift(newLog);
+  // Insert new log, then sort chronologically (newest first)
+  logs.push(newLog);
+  logs.sort((a, b) => b.date - a.date);
   localStorage.setItem('mood_logs', JSON.stringify(logs));
 
   // Reset variables & view
@@ -473,13 +508,18 @@ function subscribeUser() {
       });
     })
     .then(subscription => {
+      // Add checked hours in subscription metadata
+      const checkedHours = Array.from(document.querySelectorAll('input[name="reminder-hour"]:checked')).map(el => parseInt(el.value));
+      const subData = subscription.toJSON();
+      subData.reminder_hours = checkedHours;
+
       // Send subscription to backend
       return fetch(`${BACKEND_URL}/api/subscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(subscription)
+        body: JSON.stringify(subData)
       });
     })
     .then(res => {
@@ -758,4 +798,189 @@ function verifyPin(pin, dots, lockScreen) {
   .finally(() => {
     showLoading(false);
   });
+}
+
+// CONFIGURABLE PUSH HOURS
+function savePushHours() {
+  if (!isSubscribed || !swRegistration) {
+    showToast('Primero activá las notificaciones. 🔔');
+    return;
+  }
+
+  showLoading(true);
+  swRegistration.pushManager.getSubscription()
+    .then(subscription => {
+      if (!subscription) throw new Error('No active subscription found');
+      
+      const checkedHours = Array.from(document.querySelectorAll('input[name="reminder-hour"]:checked')).map(el => parseInt(el.value));
+      const subData = subscription.toJSON();
+      subData.reminder_hours = checkedHours;
+
+      // Save local hours setting in LocalStorage just to remember checkbox status locally
+      localStorage.setItem('mood_push_hours', JSON.stringify(checkedHours));
+
+      return fetch(`${BACKEND_URL}/api/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(subData)
+      });
+    })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      showToast('⏰ Horarios de notificación guardados.');
+    })
+    .catch(err => {
+      console.error('Error al guardar horarios push:', err);
+      showToast('Error al sincronizar con el servidor.');
+    })
+    .finally(() => {
+      showLoading(false);
+    });
+}
+
+function loadPushHours() {
+  try {
+    const raw = localStorage.getItem('mood_push_hours');
+    if (raw) {
+      const hours = JSON.parse(raw);
+      document.querySelectorAll('input[name="reminder-hour"]').forEach(checkbox => {
+        const val = parseInt(checkbox.value);
+        checkbox.checked = hours.includes(val);
+      });
+    }
+  } catch (e) {
+    console.error('Could not load local push hours config', e);
+  }
+}
+
+// DAILY GOALS / HABIT TRACKER LOGIC
+let goalsList = [];
+let goalsCompletedState = {}; // { 'YYYY-MM-DD': { goalId: true/false } }
+
+function initGoals() {
+  // Load goals
+  try {
+    const rawGoals = localStorage.getItem('mood_goals');
+    if (rawGoals) goalsList = JSON.parse(rawGoals);
+  } catch (e) {
+    goalsList = [];
+  }
+
+  // Load completed state
+  try {
+    const rawCompleted = localStorage.getItem('mood_goals_completed');
+    if (rawCompleted) goalsCompletedState = JSON.parse(rawCompleted);
+  } catch (e) {
+    goalsCompletedState = {};
+  }
+
+  // Render lists
+  renderHomeGoals();
+  renderSettingsGoals();
+}
+
+function renderHomeGoals() {
+  const container = document.getElementById('goals-checklist-container');
+  if (!container) return;
+
+  if (goalsList.length === 0) {
+    container.innerHTML = `<p style="color: var(--text-muted); font-size: 13px; font-style: italic; font-weight: 300;">No tenés objetivos configurados. Creá algunos en Ajustes ⚙️</p>`;
+    return;
+  }
+
+  const todayStr = getTodayDateString();
+  if (!goalsCompletedState[todayStr]) {
+    goalsCompletedState[todayStr] = {};
+  }
+
+  let html = '';
+  goalsList.forEach(goal => {
+    const isCompleted = !!goalsCompletedState[todayStr][goal.id];
+    html += `
+      <label class="goal-item ${isCompleted ? 'completed' : ''}" data-id="${goal.id}">
+        <input type="checkbox" class="goal-checkbox" ${isCompleted ? 'checked' : ''} onchange="toggleGoalCompletion(${goal.id}, this)">
+        <span class="goal-text">${escapeHtml(goal.text)}</span>
+      </label>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+window.toggleGoalCompletion = function(goalId, checkbox) {
+  const todayStr = getTodayDateString();
+  if (!goalsCompletedState[todayStr]) {
+    goalsCompletedState[todayStr] = {};
+  }
+
+  goalsCompletedState[todayStr][goalId] = checkbox.checked;
+  localStorage.setItem('mood_goals_completed', JSON.stringify(goalsCompletedState));
+
+  const parentLabel = checkbox.closest('.goal-item');
+  if (parentLabel) {
+    if (checkbox.checked) {
+      parentLabel.classList.add('completed');
+    } else {
+      parentLabel.classList.remove('completed');
+    }
+  }
+};
+
+function renderSettingsGoals() {
+  const container = document.getElementById('settings-goals-container');
+  if (!container) return;
+
+  if (goalsList.length === 0) {
+    container.innerHTML = `<p style="color: var(--text-muted); font-size: 12px; font-style: italic; font-weight: 300; text-align: center; margin-top: 10px;">Aún no creaste objetivos.</p>`;
+    return;
+  }
+
+  let html = '';
+  goalsList.forEach(goal => {
+    html += `
+      <div class="settings-goal-item">
+        <span class="settings-goal-text">${escapeHtml(goal.text)}</span>
+        <button class="btn-remove-goal" onclick="removeGoal(${goal.id})" title="Eliminar objetivo">✕</button>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+window.removeGoal = function(goalId) {
+  goalsList = goalsList.filter(g => g.id !== goalId);
+  localStorage.setItem('mood_goals', JSON.stringify(goalsList));
+  initGoals();
+  showToast('Objetivo eliminado.');
+};
+
+function addGoal() {
+  const input = document.getElementById('input-new-goal');
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) {
+    showToast('Escribí un objetivo.');
+    return;
+  }
+
+  goalsList.push({
+    id: Date.now(),
+    text: text
+  });
+
+  localStorage.setItem('mood_goals', JSON.stringify(goalsList));
+  input.value = '';
+  
+  initGoals();
+  showToast('Objetivo creado. ¡A cumplirlo! 💪');
+}
+
+function getTodayDateString() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

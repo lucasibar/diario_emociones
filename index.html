@@ -97,6 +97,14 @@
         </button>
       </div>
 
+      <!-- Daily Goals Checklist Card -->
+      <div class="home-goals-card glass-panel" id="home-goals-panel">
+        <h3>Objetivos de Hoy</h3>
+        <div class="goals-checklist" id="goals-checklist-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
       <!-- Quick stats snippet on home -->
       <div class="home-stats-card glass-panel" id="home-stats-summary">
         <h3>Tu resumen de hoy</h3>
@@ -119,6 +127,17 @@
         <label for="diary-textarea" class="input-label">¿Querés escribir un diario corto sobre esto?</label>
         <textarea id="diary-textarea" placeholder="Escribí acá lo que te pasa por la cabeza (opcional)..." rows="5" maxlength="300"></textarea>
         <div class="char-counter"><span id="char-count">0</span>/300</div>
+
+        <!-- Past Date/Time Trigger -->
+        <div class="custom-date-section">
+          <button class="btn-toggle-date" id="btn-toggle-custom-date" type="button">
+            📅 Registrar en otra fecha/hora
+          </button>
+          <div class="datetime-picker-wrapper hidden" id="datetime-picker-wrapper">
+            <label for="diary-datetime" class="input-label">Seleccioná fecha y hora:</label>
+            <input type="datetime-local" id="diary-datetime">
+          </div>
+        </div>
 
         <div class="form-actions">
           <button class="btn-secondary" id="btn-skip-diary">Omitir nota</button>
@@ -163,7 +182,7 @@
 
       <div class="settings-group glass-panel">
         <h3>Notificaciones Diarias</h3>
-        <p class="settings-desc">Recibí notificaciones dos veces al día para registrar tu humor sin olvidarte.</p>
+        <p class="settings-desc">Recibí notificaciones para registrar tu humor sin olvidarte.</p>
         
         <div class="notification-status-bar" id="notification-status-bar">
           Estado: <span id="notification-status-text" class="status-badge status-disabled">Inactivo</span>
@@ -173,12 +192,61 @@
           Activar Notificaciones
         </button>
 
+        <div class="reminder-hours-container" id="reminder-hours-container">
+          <h4>Recordatorios de Notificación</h4>
+          <p class="settings-desc">Elegí a qué horas recibir los recordatorios:</p>
+          <div class="hours-grid">
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="8">
+              <span>08:00</span>
+            </label>
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="10" checked>
+              <span>10:00</span>
+            </label>
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="13">
+              <span>13:00</span>
+            </label>
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="16">
+              <span>16:00</span>
+            </label>
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="20" checked>
+              <span>20:00</span>
+            </label>
+            <label class="hour-checkbox-label">
+              <input type="checkbox" name="reminder-hour" value="22">
+              <span>22:00</span>
+            </label>
+          </div>
+          <button class="btn-secondary btn-full btn-sm" id="btn-save-push-hours" style="margin-top: 10px;">
+            Guardar horarios
+          </button>
+        </div>
+
         <div class="simulator-box">
           <h4>Simulador de Notificación</h4>
           <p class="settings-desc">Probá cómo se ve la notificación con los emojis interactivos. Al presionar el botón, bloqueá tu pantalla y esperá 5 segundos.</p>
           <button class="btn-secondary btn-full" id="btn-simulate-notification">
             Simular en 5 segundos
           </button>
+        </div>
+      </div>
+
+      <!-- Goals Manager Section -->
+      <div class="settings-group glass-panel">
+        <h3>Objetivos Diarios</h3>
+        <p class="settings-desc">Definí los hábitos u objetivos que querés cumplir cada día.</p>
+        
+        <div class="goals-manager-form">
+          <input type="text" id="input-new-goal" placeholder="Ej: Tomar agua, Meditar, Entrenar..." maxlength="50">
+          <button class="btn-primary btn-sm" id="btn-add-goal">Añadir</button>
+        </div>
+        
+        <div class="settings-goals-list" id="settings-goals-container">
+          <!-- Dynamically populated -->
         </div>
       </div>
 
